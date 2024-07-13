@@ -5,6 +5,8 @@ from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_m
 from transformers.models.gpt2.modeling_gpt2 import GPT2Block
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 
+from typing import Optional
+
 
 class DTrOCR(nn.Module):
     def __init__(self, config):
@@ -17,45 +19,44 @@ class DTrOCR(nn.Module):
         self.hidden_layers = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.dropout = nn.Dropout(config.attn_pdrop)
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
+        self.position_ids = torch.arange(config.max_position_embeddings, dtype=torch.long).unsqueeze(0)
 
     def forward(
         self,
         pixel_values: torch.Tensor,
         input_ids: torch.LongTensor,
-        attention_mask: torch.FloatTensor
+        attention_mask: Optional[torch.FloatTensor] = None,
     ):
-        device = input_ids.device if input_ids is not None else pixel_values.device
-        past_key_values = tuple([None] * len(self.hidden_layers))
+        input_ids = input_ids.view(-1, input_ids.shape[-1])
 
-        input_shape = input_ids.size()
-        input_ids = input_ids.view(-1, input_shape[-1])
-        batch_size = input_ids.shape[0]
+        patch_embeddings = self.patch_embeddings(pixel_values)
+        token_embeddings = self.token_embedding(input_ids)
+        patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
 
-        position_ids = torch.arange(0, input_shape[-1], dtype=torch.long, device=device)
-        position_ids = position_ids.unsqueeze(0)
+        input_shape = patch_and_token_embeddings.shape
+        position_embeddings = self.positional_embedding(self.position_ids[:, :input_shape[1]])
 
-        patch_embeddings = self.patch_embeddings(pixel_values, interpolate_pos_encoding=False)
-        inputs_embeddings = self.token_embedding(input_ids)
-        position_embeddings = self.positional_embedding(position_ids)
+        hidden_states = patch_and_token_embeddings + position_embeddings
+        hidden_states = self.dropout(hidden_states)
 
-        hidden_states = torch.concat([patch_embeddings, inputs_embeddings]) + position_embeddings
-        hidden_states = self.drop(hidden_states)
+        if attention_mask is not None:
+            attention_mask = torch.concat(
+                [
+                    torch.ones(attention_mask.shape[0], patch_embeddings.shape[-2], dtype=attention_mask.dtype),
+                    attention_mask
+                ], dim=-1
+            )
+            attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
+                attention_mask=attention_mask,
+                input_shape=(input_shape[0], input_shape[-2]),
+                inputs_embeds=patch_and_token_embeddings,
+                past_key_values_length=0,
+            )
 
-        output_shape = (-1,) + input_shape[1:] + (hidden_states.size(-1),)
-
-        # Attention mask.
-        attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
-            attention_mask=attention_mask,
-            input_shape=(batch_size, input_shape[-1]),
-            inputs_embeds=inputs_embeddings,
-            past_key_values_length=0,
-        )
-
-        for i, (hidden_layer, past_layer) in enumerate(zip(self.hidden_layers, past_key_values)):
+        for hidden_layer in self.hidden_layers:
             outputs = hidden_layer(hidden_states, attention_mask=attention_mask)
             hidden_states = outputs[0]
 
         hidden_states = self.layer_norm(hidden_states)
-        hidden_states = hidden_states.view(output_shape)
 
         return hidden_states
