@@ -1,15 +1,17 @@
 import torch
 
 from torch import nn
+from typing import Optional
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask_for_sdpa
 from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2Model
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 
-from typing import Optional
+from .data import DTrOCROutput
+from .config import DTrOCRConfig
 
 
-class DTrOCR(nn.Module):
-    def __init__(self, config):
+class DTrOCRModel(nn.Module):
+    def __init__(self, config: DTrOCRConfig):
         super().__init__()
         # embeddings
         self.patch_embeddings = ViTPatchEmbeddings(config)
@@ -67,7 +69,7 @@ class DTrOCR(nn.Module):
 
         return hidden_states
 
-    def initialise_weights(self, config):
+    def initialise_weights(self, config: DTrOCRConfig):
         # load pre-trained GPT-2
         pretrained_gpt2 = GPT2Model.from_pretrained(config.gpt2_hf_model)
 
@@ -77,3 +79,46 @@ class DTrOCR(nn.Module):
 
         # token embeddings
         self.token_embedding.load_state_dict(pretrained_gpt2.wte.state_dict())
+
+
+class DTrOCRLMHeadModel(nn.Module):
+    def __init__(self, config: DTrOCRConfig):
+        super().__init__()
+        self.transformer = DTrOCRModel(config)
+        self.language_model_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
+
+        image_size, patch_size = config.image_size, config.patch_size
+        self.image_embedding_length = int((image_size[0] / patch_size[0]) * (image_size[1] / patch_size[1]))
+
+    def forward(
+        self,
+        pixel_values: torch.Tensor,
+        input_ids: torch.LongTensor,
+        attention_mask: Optional[torch.Tensor] = None,
+        labels: Optional[torch.LongTensor] = None,
+    ):
+        hidden_states = self.transformer(
+            pixel_values=pixel_values,
+            input_ids=input_ids,
+            attention_mask=attention_mask
+        )
+        logits = self.language_model_head(hidden_states)
+
+        loss = None
+        if labels is not None:
+            labels = labels.to(logits.device)
+
+            # Shift so that tokens < n predict n
+            shift_logits = logits[..., self.image_embedding_length:-1, :].contiguous()
+            shift_labels = labels[..., 1:].contiguous()
+
+            loss_fct = nn.CrossEntropyLoss(reduction="mean")
+            loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
+
+            # reduce loss
+            if attention_mask is not None:
+                loss = (attention_mask[..., 1:].reshape(-1) * loss).sum() / attention_mask[..., 1:].sum()
+            else:
+                loss = loss.mean()
+
+        return DTrOCROutput(loss=loss, logits=logits)
