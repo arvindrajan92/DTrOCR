@@ -4,6 +4,7 @@ from typing import Optional, Union, Tuple, List
 class DTrOCRConfig:
     def __init__(
         self,
+        gpt2_hf_model: str = 'openai-community/gpt2',
         vocab_size: Optional[int] = 50257,
         max_position_embeddings: Optional[int] = 256,
         hidden_size: Optional[int] = 768,
@@ -17,6 +18,7 @@ class DTrOCRConfig:
         attn_pdrop: Optional[float] = 0.1,
         layer_norm_epsilon: Optional[float] = 1e-5,
     ):
+        self.gpt2_hf_model = gpt2_hf_model
         self.hidden_size = hidden_size
         self.num_hidden_layers = num_hidden_layers
         self.num_attention_heads = num_attention_heads

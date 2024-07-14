@@ -2,7 +2,7 @@ import torch
 
 from torch import nn
 from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_mask_for_sdpa
-from transformers.models.gpt2.modeling_gpt2 import GPT2Block
+from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2Model
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 
 from typing import Optional
@@ -20,6 +20,9 @@ class DTrOCR(nn.Module):
         self.dropout = nn.Dropout(config.attn_pdrop)
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
         self.position_ids = torch.arange(config.max_position_embeddings, dtype=torch.long).unsqueeze(0)
+
+        # initialise weights from GPT-2
+        self.initialise_weights(config)
 
     def forward(
         self,
@@ -63,3 +66,14 @@ class DTrOCR(nn.Module):
         hidden_states = self.layer_norm(hidden_states)
 
         return hidden_states
+
+    def initialise_weights(self, config):
+        # load pre-trained GPT-2
+        pretrained_gpt2 = GPT2Model.from_pretrained(config.gpt2_hf_model)
+
+        # copy hidden layer weights
+        for hidden_layer, pretrained_hidden_layer in zip(self.hidden_layers, pretrained_gpt2.h):
+            hidden_layer.load_state_dict(pretrained_hidden_layer.state_dict())
+
+        # token embeddings
+        self.token_embedding.load_state_dict(pretrained_gpt2.wte.state_dict())
