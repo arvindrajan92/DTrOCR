@@ -1,5 +1,5 @@
-from typing import Optional, Union, Tuple, List
-
+from typing import Optional, Union, Tuple, List, Literal
+from transformers import GPT2Config
 
 class DTrOCRConfig:
     def __init__(
@@ -17,6 +17,7 @@ class DTrOCRConfig:
         embd_pdrop: Optional[float] = 0.1,
         attn_pdrop: Optional[float] = 0.1,
         layer_norm_epsilon: Optional[float] = 1e-5,
+        attn_implementation: Optional[Literal["eager", "sdpa"]] = 'sdpa'
     ):
         self.gpt2_hf_model = gpt2_hf_model
         self.hidden_size = hidden_size
@@ -34,7 +35,7 @@ class DTrOCRConfig:
 
         # other GPT2 config values
         self.n_inner = None
-        self._attn_implementation = "sdpa"
+        self._attn_implementation = attn_implementation
         self.scale_attn_weights = True
         self.scale_attn_by_inverse_layer_idx = False
         self.reorder_and_upcast_attn = False
