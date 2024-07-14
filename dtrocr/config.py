@@ -5,7 +5,7 @@ class DTrOCRConfig:
     def __init__(
         self,
         vocab_size: Optional[int] = 50257,
-        max_position_embeddings: Optional[int] = 512,
+        max_position_embeddings: Optional[int] = 256,
         hidden_size: Optional[int] = 768,
         num_hidden_layers: Optional[int] = 12,
         num_attention_heads: Optional[int] = 12,
