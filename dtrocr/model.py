@@ -6,8 +6,8 @@ from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_m
 from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2Model
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 
-from .data import DTrOCROutput
-from .config import DTrOCRConfig
+from data import DTrOCROutput
+from config import DTrOCRConfig
 
 
 class DTrOCRModel(nn.Module):
@@ -117,7 +117,8 @@ class DTrOCRLMHeadModel(nn.Module):
 
             # reduce loss
             if attention_mask is not None:
-                loss = (attention_mask[..., 1:].reshape(-1) * loss).sum() / attention_mask[..., 1:].sum()
+                loss_mask = attention_mask[..., 1:].reshape(-1)
+                loss = (loss_mask * loss).sum() / loss_mask.sum()
             else:
                 loss = loss.mean()
 
