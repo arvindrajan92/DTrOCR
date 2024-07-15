@@ -112,7 +112,7 @@ class DTrOCRLMHeadModel(nn.Module):
             shift_logits = logits[..., self.image_embedding_length:-1, :].contiguous()
             shift_labels = labels[..., 1:].contiguous()
 
-            loss_fct = nn.CrossEntropyLoss(reduction="mean")
+            loss_fct = nn.CrossEntropyLoss(reduction="none")
             loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
             # reduce loss
