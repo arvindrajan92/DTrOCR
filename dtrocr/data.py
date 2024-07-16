@@ -1,7 +1,8 @@
 import torch
+import numpy as np
 
-from typing import Optional
 from dataclasses import dataclass
+from typing import Optional, Union, List
 
 
 @dataclass
@@ -17,3 +18,11 @@ class DTrOCROutput:
     """
     loss: Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
+
+
+@dataclass
+class DTrOCRProcessorOutput:
+    pixel_values: Optional[torch.Tensor] = None
+    input_ids: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None
+    attention_mask: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None
+    labels: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None

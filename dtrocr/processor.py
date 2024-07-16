@@ -1,8 +1,9 @@
 from transformers import GPT2Tokenizer, AutoImageProcessor
 
-from config import DTrOCRConfig
-from typing import List
 from PIL import Image
+from typing import List
+from config import DTrOCRConfig
+from data import DTrOCRProcessorOutput
 
 
 class DTrOCRProcessor:
@@ -30,12 +31,12 @@ class DTrOCRProcessor:
         text_inputs = self.gpt2_tokeniser(texts, *args, **kwargs) if texts is not None else None
         image_inputs = self.vit_processor(images, *args, **kwargs) if images is not None else None
 
-        return {
-            "pixel_values": image_inputs["pixel_values"] if images is not None else None,
-            "input_ids": text_inputs['input_ids'] if texts is not None else None,
-            "attention_mask": text_inputs['attention_mask'] if texts is not None else None,
-            "labels": text_inputs['input_ids'] if texts is not None else None
-        }
+        return DTrOCRProcessorOutput(
+            pixel_values=image_inputs["pixel_values"] if images is not None else None,
+            input_ids=text_inputs['input_ids'] if texts is not None else None,
+            attention_mask=text_inputs['attention_mask'] if texts is not None else None,
+            labels=text_inputs['input_ids'] if texts is not None else None
+        )
 
 
 def modified_build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):

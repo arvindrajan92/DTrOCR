@@ -15,8 +15,8 @@ def test_tokeniser_with_bos_token():
         [1, 1, 1, 1, 1, 1, 1, 1]
     ]
 
-    assert tokeniser_output['input_ids'] == expected_input_ids
-    assert tokeniser_output['attention_mask'] == expected_attention_mask
+    assert tokeniser_output.input_ids == expected_input_ids
+    assert tokeniser_output.attention_mask == expected_attention_mask
 
 
 def test_tokeniser_with_eos_token():
@@ -32,8 +32,8 @@ def test_tokeniser_with_eos_token():
         [1, 1, 1, 1, 1, 1, 1, 1]
     ]
 
-    assert tokeniser_output['input_ids'] == expected_input_ids
-    assert tokeniser_output['attention_mask'] == expected_attention_mask
+    assert tokeniser_output.input_ids == expected_input_ids
+    assert tokeniser_output.attention_mask == expected_attention_mask
 
 
 def test_tokeniser_with_eos_and_bos_tokens():
@@ -49,5 +49,5 @@ def test_tokeniser_with_eos_and_bos_tokens():
         [1, 1, 1, 1, 1, 1, 1, 1, 1]
     ]
 
-    assert tokeniser_output['input_ids'] == expected_input_ids
-    assert tokeniser_output['attention_mask'] == expected_attention_mask
+    assert tokeniser_output.input_ids == expected_input_ids
+    assert tokeniser_output.attention_mask == expected_attention_mask
