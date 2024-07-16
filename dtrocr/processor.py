@@ -27,7 +27,7 @@ class DTrOCRProcessor:
             self.gpt2_tokeniser
         )
 
-    def __call__(self, images: List[Image] = None, texts: List[str] = None, *args, **kwargs):
+    def __call__(self, images: List[Image] = None, texts: List[str] = None, *args, **kwargs) -> DTrOCRProcessorOutput:
         text_inputs = self.gpt2_tokeniser(texts, *args, **kwargs) if texts is not None else None
         image_inputs = self.vit_processor(images, *args, **kwargs) if images is not None else None
 

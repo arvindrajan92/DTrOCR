@@ -7,22 +7,13 @@ from typing import Optional, Union, List
 
 @dataclass
 class DTrOCROutput:
-    """
-    Base class for causal language model (or autoregressive) outputs.
-
-    Args:
-        loss (`torch.FloatTensor` of shape `(1, )`, *optional*, returned when `labels` is provided):
-            Language modeling loss (for next-token prediction).
-        logits (`torch.FloatTensor` of shape `(batch_size, sequence_length, config.vocab_size)`):
-            Prediction scores of the language modeling head (scores for each vocabulary token before SoftMax).
-    """
     loss: Optional[torch.FloatTensor] = None
     logits: torch.FloatTensor = None
 
 
 @dataclass
 class DTrOCRProcessorOutput:
-    pixel_values: Optional[torch.Tensor] = None
-    input_ids: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None
-    attention_mask: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None
-    labels: Optional[Union[torch.Tensor, np.ndarray, List[int]]] = None
+    pixel_values: Optional[torch.FloatTensor] = None
+    input_ids: Optional[Union[torch.LongTensor, np.ndarray, List[int]]] = None
+    attention_mask: Optional[Union[torch.FloatTensor, np.ndarray, List[int]]] = None
+    labels: Optional[Union[torch.LongTensor, np.ndarray, List[int]]] = None

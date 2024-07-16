@@ -33,7 +33,7 @@ class DTrOCRModel(nn.Module):
         pixel_values: torch.Tensor,
         input_ids: torch.LongTensor,
         attention_mask: Optional[torch.Tensor] = None
-    ):
+    ) -> torch.FloatTensor:
         input_ids = input_ids.view(-1, input_ids.shape[-1])
 
         patch_embeddings = self.patch_embeddings(pixel_values)
@@ -69,7 +69,7 @@ class DTrOCRModel(nn.Module):
 
         return hidden_states
 
-    def initialise_weights(self, config: DTrOCRConfig):
+    def initialise_weights(self, config: DTrOCRConfig) -> None:
         # load pre-trained GPT-2
         pretrained_gpt2 = GPT2Model.from_pretrained(config.gpt2_hf_model)
 
@@ -96,7 +96,7 @@ class DTrOCRLMHeadModel(nn.Module):
         input_ids: torch.LongTensor,
         attention_mask: Optional[torch.Tensor] = None,
         labels: Optional[torch.LongTensor] = None,
-    ):
+    ) -> DTrOCROutput:
         hidden_states = self.transformer(
             pixel_values=pixel_values,
             input_ids=input_ids,
