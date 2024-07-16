@@ -1,0 +1,57 @@
+from transformers import GPT2Tokenizer, AutoImageProcessor
+
+from config import DTrOCRConfig
+from typing import List
+from PIL import Image
+
+
+class DTrOCRProcessor:
+    def __init__(self, config: DTrOCRConfig, add_bos_token: bool = False, add_eos_token: bool = False):
+        self.vit_processor = AutoImageProcessor.from_pretrained(
+            config.vit_hf_model,
+            size={
+                "height": config.image_size[0],
+                'width': config.image_size[1]
+            }
+        )
+        self.gpt2_tokeniser = GPT2Tokenizer.from_pretrained(
+            config.gpt2_hf_model,
+            add_bos_token=add_bos_token,
+        )
+        self.gpt2_tokeniser.pad_token = self.gpt2_tokeniser.bos_token
+        self.gpt2_tokeniser.add_eos_token = add_eos_token
+
+        # Bind a new method to gpt2_tokeniser
+        self.gpt2_tokeniser.build_inputs_with_special_tokens = modified_build_inputs_with_special_tokens.__get__(
+            self.gpt2_tokeniser
+        )
+
+    def __call__(self, images: List[Image] = None, texts: List[str] = None, *args, **kwargs):
+        text_inputs = self.gpt2_tokeniser(texts, *args, **kwargs) if texts is not None else None
+        image_inputs = self.vit_processor(images, *args, **kwargs) if images is not None else None
+
+        return {
+            "pixel_values": image_inputs["pixel_values"] if images is not None else None,
+            "input_ids": text_inputs['input_ids'] if texts is not None else None,
+            "attention_mask": text_inputs['attention_mask'] if texts is not None else None,
+            "labels": text_inputs['input_ids'] if texts is not None else None
+        }
+
+
+def modified_build_inputs_with_special_tokens(self, token_ids_0, token_ids_1=None):
+    if self.add_bos_token:
+        bos_token_ids = [self.bos_token_id]
+    else:
+        bos_token_ids = []
+
+    if self.add_eos_token:
+        eos_token_ids = [self.eos_token_id]
+    else:
+        eos_token_ids = []
+
+    output = bos_token_ids + token_ids_0 + eos_token_ids
+
+    if token_ids_1 is None:
+        return output
+
+    return output + bos_token_ids + token_ids_1
