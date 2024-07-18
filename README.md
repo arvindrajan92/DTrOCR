@@ -25,6 +25,7 @@ from dtrocr.model import DTrOCRLMHeadModel
 from dtrocr.processor import DTrOCRProcessor
 
 from PIL import Image
+from dataclasses import asdict
 
 config = DTrOCRConfig()
 model = DTrOCRLMHeadModel(config)
@@ -37,5 +38,6 @@ inputs = processor(
     return_tensors="pt",
     return_labels=True
 )
+model_output = model(**asdict(inputs))
 ```
 
