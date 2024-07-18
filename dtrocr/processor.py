@@ -13,7 +13,8 @@ class DTrOCRProcessor:
             size={
                 "height": config.image_size[0],
                 'width': config.image_size[1]
-            }
+            },
+            use_fast=True
         )
         self.gpt2_tokeniser = GPT2Tokenizer.from_pretrained(
             config.gpt2_hf_model,
@@ -27,7 +28,14 @@ class DTrOCRProcessor:
             self.gpt2_tokeniser
         )
 
-    def __call__(self, images: List[Image] = None, texts: List[str] = None, *args, **kwargs) -> DTrOCRProcessorOutput:
+    def __call__(
+        self,
+        images: List[Image] = None,
+        texts: List[str] = None,
+        return_labels: bool = False,
+        *args,
+        **kwargs
+    ) -> DTrOCRProcessorOutput:
         text_inputs = self.gpt2_tokeniser(texts, *args, **kwargs) if texts is not None else None
         image_inputs = self.vit_processor(images, *args, **kwargs) if images is not None else None
 
@@ -35,7 +43,7 @@ class DTrOCRProcessor:
             pixel_values=image_inputs["pixel_values"] if images is not None else None,
             input_ids=text_inputs['input_ids'] if texts is not None else None,
             attention_mask=text_inputs['attention_mask'] if texts is not None else None,
-            labels=text_inputs['input_ids'] if texts is not None else None
+            labels=text_inputs['input_ids'] if texts is not None and return_labels else None
         )
 
 

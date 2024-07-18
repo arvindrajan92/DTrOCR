@@ -1,5 +1,8 @@
-from dtrocr.processor import DTrOCRProcessor
 from dtrocr.config import DTrOCRConfig
+from dtrocr.processor import DTrOCRProcessor
+
+import random
+from PIL import Image
 
 
 def test_tokeniser_with_bos_token():
@@ -51,3 +54,13 @@ def test_tokeniser_with_eos_and_bos_tokens():
 
     assert tokeniser_output.input_ids == expected_input_ids
     assert tokeniser_output.attention_mask == expected_attention_mask
+
+
+def test_image_processor():
+    batch_size = random.choice(range(10))
+
+    config = DTrOCRConfig()
+    processor = DTrOCRProcessor(config=config)
+    tokeniser_output = processor(images=[Image.new("RGB", config.image_size[::-1]) for _ in range(batch_size)])
+
+    assert tokeniser_output.pixel_values.shape == (batch_size, 3) + tuple(config.image_size)

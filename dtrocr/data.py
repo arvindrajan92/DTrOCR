@@ -6,9 +6,14 @@ from typing import Optional, Union, List
 
 
 @dataclass
-class DTrOCROutput:
+class DTrOCRModelOutput:
+    hidden_states: torch.FloatTensor
+
+
+@dataclass
+class DTrOCRLMHeadModelOutput:
+    logits: torch.FloatTensor
     loss: Optional[torch.FloatTensor] = None
-    logits: torch.FloatTensor = None
 
 
 @dataclass

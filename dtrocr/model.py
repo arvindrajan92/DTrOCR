@@ -6,8 +6,8 @@ from transformers.modeling_attn_mask_utils import _prepare_4d_causal_attention_m
 from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2Model
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 
-from data import DTrOCROutput
 from config import DTrOCRConfig
+from data import DTrOCRLMHeadModelOutput, DTrOCRModelOutput
 
 
 class DTrOCRModel(nn.Module):
@@ -33,7 +33,7 @@ class DTrOCRModel(nn.Module):
         pixel_values: torch.Tensor,
         input_ids: torch.LongTensor,
         attention_mask: Optional[torch.Tensor] = None
-    ) -> torch.FloatTensor:
+    ) -> DTrOCRModelOutput:
         input_ids = input_ids.view(-1, input_ids.shape[-1])
 
         patch_embeddings = self.patch_embeddings(pixel_values)
@@ -67,7 +67,7 @@ class DTrOCRModel(nn.Module):
 
         hidden_states = self.layer_norm(hidden_states)
 
-        return hidden_states
+        return DTrOCRModelOutput(hidden_states=hidden_states)
 
     def initialise_weights(self, config: DTrOCRConfig) -> None:
         # load pre-trained GPT-2
@@ -96,13 +96,13 @@ class DTrOCRLMHeadModel(nn.Module):
         input_ids: torch.LongTensor,
         attention_mask: Optional[torch.Tensor] = None,
         labels: Optional[torch.LongTensor] = None,
-    ) -> DTrOCROutput:
-        hidden_states = self.transformer(
+    ) -> DTrOCRLMHeadModelOutput:
+        transformer_output = self.transformer(
             pixel_values=pixel_values,
             input_ids=input_ids,
             attention_mask=attention_mask
         )
-        logits = self.language_model_head(hidden_states)
+        logits = self.language_model_head(transformer_output.hidden_states)
 
         loss = None
         if labels is not None:
@@ -122,4 +122,4 @@ class DTrOCRLMHeadModel(nn.Module):
             else:
                 loss = loss.mean()
 
-        return DTrOCROutput(loss=loss, logits=logits)
+        return DTrOCRLMHeadModelOutput(loss=loss, logits=logits)
