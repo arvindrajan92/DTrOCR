@@ -1,6 +1,6 @@
 from dtrocr.config import DTrOCRConfig
-from dtrocr.processor import DTrOCRProcessor
 from dtrocr.model import DTrOCRLMHeadModel
+from dtrocr.processor import DTrOCRProcessor
 
 import random
 from PIL import Image

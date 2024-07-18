@@ -9,3 +9,33 @@ A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Charact
 >
 > This is a work in progress!
 
+## Installation
+
+```shell
+git clone git@github.com:arvindrajan92/DTrOCR.git
+cd DTrOCR
+pip install -r requirements.txt
+```
+
+## Usage
+
+```python
+from dtrocr.config import DTrOCRConfig
+from dtrocr.model import DTrOCRLMHeadModel
+from dtrocr.processor import DTrOCRProcessor
+
+from PIL import Image
+
+config = DTrOCRConfig()
+model = DTrOCRLMHeadModel(config)
+processor = DTrOCRProcessor(config=config, add_bos_token=True, add_eos_token=True)
+
+inputs = processor(
+    images=[Image.open("RGB", config.image_size[::-1])],
+    texts=["This is a sentence"],
+    padding=True,
+    return_tensors="pt",
+    return_labels=True
+)
+```
+
