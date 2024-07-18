@@ -32,7 +32,7 @@ model = DTrOCRLMHeadModel(config)
 processor = DTrOCRProcessor(config=config, add_bos_token=True, add_eos_token=True)
 
 inputs = processor(
-    images=[Image.open("RGB", config.image_size[::-1])],
+    images=[Image.new("RGB", config.image_size[::-1])],
     texts=["This is a sentence"],
     padding=True,
     return_tensors="pt",
