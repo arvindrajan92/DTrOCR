@@ -21,7 +21,6 @@ class DTrOCRModel(nn.Module):
         self.hidden_layers = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.dropout = nn.Dropout(config.attn_pdrop)
         self.layer_norm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_epsilon)
-        self.position_ids = torch.arange(config.max_position_embeddings, dtype=torch.long).unsqueeze(0)
 
         self._attn_implementation = config._attn_implementation
 
@@ -34,6 +33,7 @@ class DTrOCRModel(nn.Module):
         input_ids: torch.LongTensor,
         attention_mask: Optional[torch.Tensor] = None
     ) -> DTrOCRModelOutput:
+        device = input_ids.device if input_ids is not None else input_ids.device
         input_ids = input_ids.view(-1, input_ids.shape[-1])
 
         patch_embeddings = self.patch_embeddings(pixel_values)
@@ -41,7 +41,8 @@ class DTrOCRModel(nn.Module):
         patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
 
         input_shape = patch_and_token_embeddings.shape
-        position_embeddings = self.positional_embedding(self.position_ids[:, :input_shape[1]])
+        position_ids = torch.arange(input_shape[1], dtype=torch.long, device=device).unsqueeze(0)
+        position_embeddings = self.positional_embedding(position_ids)
 
         hidden_states = patch_and_token_embeddings + position_embeddings
         hidden_states = self.dropout(hidden_states)
@@ -50,7 +51,12 @@ class DTrOCRModel(nn.Module):
         if attention_mask is not None:
             attention_mask = torch.concat(
                 [
-                    torch.ones(attention_mask.shape[0], patch_embeddings.shape[-2], dtype=attention_mask.dtype),
+                    torch.ones(
+                        attention_mask.shape[0],
+                        patch_embeddings.shape[-2],
+                        dtype=attention_mask.dtype,
+                        device=attention_mask.device
+                    ),
                     attention_mask
                 ], dim=-1
             )
