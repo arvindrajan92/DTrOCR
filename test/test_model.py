@@ -25,6 +25,7 @@ def test_model():
     model_output = model(**asdict(inputs))
 
     assert model_output.loss.shape == ()
+    assert model_output.accuracy.shape == ()
     assert model_output.logits.shape == (
         batch_size,
         int(((config.image_size[0] / config.patch_size[0]) * (config.image_size[1] / config.patch_size[1]))) +

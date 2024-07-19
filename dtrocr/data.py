@@ -14,6 +14,7 @@ class DTrOCRModelOutput:
 class DTrOCRLMHeadModelOutput:
     logits: torch.FloatTensor
     loss: Optional[torch.FloatTensor] = None
+    accuracy: Optional[torch.FloatTensor] = None
 
 
 @dataclass

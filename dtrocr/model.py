@@ -104,7 +104,7 @@ class DTrOCRLMHeadModel(nn.Module):
         )
         logits = self.language_model_head(transformer_output.hidden_states)
 
-        loss = None
+        loss, accuracy = None, None
         if labels is not None:
             labels = labels.to(logits.device)
 
@@ -115,11 +115,16 @@ class DTrOCRLMHeadModel(nn.Module):
             loss_fct = nn.CrossEntropyLoss(reduction="none")
             loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
+            label_matches = shift_labels.view(-1) == torch.argmax(torch.nn.functional.softmax(shift_logits.view(-1, shift_logits.size(-1)), dim=-1), dim=-1)
+
             # reduce loss
             if attention_mask is not None:
-                loss_mask = attention_mask[..., 1:].reshape(-1)
-                loss = (loss_mask * loss).sum() / loss_mask.sum()
+                mask = attention_mask[..., 1:].reshape(-1)
+
+                loss = (mask * loss).sum() / mask.sum()
+                accuracy = (mask * label_matches).sum() / mask.sum()
             else:
                 loss = loss.mean()
+                accuracy = torch.sum(label_matches) / label_matches.shape[0]
 
-        return DTrOCRLMHeadModelOutput(loss=loss, logits=logits)
+        return DTrOCRLMHeadModelOutput(loss=loss, accuracy=accuracy, logits=logits)
