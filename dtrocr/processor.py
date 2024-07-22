@@ -16,17 +16,17 @@ class DTrOCRProcessor:
             },
             use_fast=True
         )
-        self.gpt2_tokeniser = GPT2Tokenizer.from_pretrained(
+        self.tokeniser = GPT2Tokenizer.from_pretrained(
             config.gpt2_hf_model,
             add_bos_token=add_bos_token,
             model_max_length=config.max_position_embeddings - int(((config.image_size[0] / config.patch_size[0]) * (config.image_size[1] / config.patch_size[1])))
         )
-        self.gpt2_tokeniser.pad_token = self.gpt2_tokeniser.bos_token
-        self.gpt2_tokeniser.add_eos_token = add_eos_token
+        self.tokeniser.pad_token = self.tokeniser.bos_token
+        self.tokeniser.add_eos_token = add_eos_token
 
         # Bind a new method to gpt2_tokeniser
-        self.gpt2_tokeniser.build_inputs_with_special_tokens = modified_build_inputs_with_special_tokens.__get__(
-            self.gpt2_tokeniser
+        self.tokeniser.build_inputs_with_special_tokens = modified_build_inputs_with_special_tokens.__get__(
+            self.tokeniser
         )
 
     def __call__(
@@ -37,7 +37,7 @@ class DTrOCRProcessor:
         *args,
         **kwargs
     ) -> DTrOCRProcessorOutput:
-        text_inputs = self.gpt2_tokeniser(texts, *args, **kwargs) if texts is not None else None
+        text_inputs = self.tokeniser(texts, *args, **kwargs) if texts is not None else None
         image_inputs = self.vit_processor(images, *args, **kwargs) if images is not None else None
 
         return DTrOCRProcessorOutput(
