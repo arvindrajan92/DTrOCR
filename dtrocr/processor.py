@@ -1,7 +1,7 @@
 from transformers import GPT2Tokenizer, AutoImageProcessor
 
 from PIL import Image
-from typing import List
+from typing import List, Union
 from config import DTrOCRConfig
 from data import DTrOCRProcessorOutput
 
@@ -31,8 +31,8 @@ class DTrOCRProcessor:
 
     def __call__(
         self,
-        images: List[Image] = None,
-        texts: List[str] = None,
+        images: Union[Image, List[Image]] = None,
+        texts: Union[str, List[str]] = None,
         return_labels: bool = False,
         *args,
         **kwargs

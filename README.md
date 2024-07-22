@@ -25,20 +25,25 @@ from dtrocr.model import DTrOCRLMHeadModel
 from dtrocr.processor import DTrOCRProcessor
 
 from PIL import Image
-from dataclasses import asdict
 
 config = DTrOCRConfig()
 model = DTrOCRLMHeadModel(config)
-processor = DTrOCRProcessor(config=config, add_bos_token=True, add_eos_token=True)
+processor = DTrOCRProcessor(DTrOCRConfig())
+
+path_to_image = ""  # path to image file
 
 inputs = processor(
-    images=[Image.new("RGB", config.image_size[::-1])],
-    texts=["This is a sentence"],
-    padding=True,
-    return_tensors="pt",
-    return_labels=True
+    images=Image.open(path_to_image).convert('RGB'),
+    texts=processor.tokeniser.bos_token,
+    return_tensors="pt"
 )
 
-model_output = model(**asdict(inputs))
+model_output = model.generate(
+    inputs=inputs, 
+    processor=processor, 
+    num_beams=3  # defaults to 1 if not specified
+)
+
+predicted_text = processor.tokeniser.decode(model_output[0], skip_special_tokens=True)
 ```
 
