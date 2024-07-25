@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, List
+from typing import Optional, Union, Tuple, List, Literal
 
 
 class DTrOCRConfig:
@@ -17,7 +17,8 @@ class DTrOCRConfig:
         resid_pdrop: Optional[float] = 0.1,
         embd_pdrop: Optional[float] = 0.1,
         attn_pdrop: Optional[float] = 0.1,
-        layer_norm_epsilon: Optional[float] = 1e-5
+        layer_norm_epsilon: Optional[float] = 1e-5,
+        attn_implementation: Literal['sdpa', 'flash_attention_2'] = 'sdpa'
     ):
         self.gpt2_hf_model = gpt2_hf_model
         self.vit_hf_model = vit_hf_model
@@ -33,10 +34,10 @@ class DTrOCRConfig:
         self.embd_pdrop = embd_pdrop
         self.attn_pdrop = attn_pdrop
         self.layer_norm_epsilon = layer_norm_epsilon
+        self._attn_implementation = attn_implementation
 
         # other GPT2 config values
         self.n_inner = None
-        self._attn_implementation = 'sdpa'
         self.scale_attn_weights = True
         self.scale_attn_by_inverse_layer_idx = False
         self.reorder_and_upcast_attn = False

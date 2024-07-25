@@ -20,6 +20,11 @@ from transformers.generation.stopping_criteria import (
     StoppingCriteriaList,
     StopStringCriteria,
 )
+from transformers.utils import is_flash_attn_2_available
+
+if is_flash_attn_2_available():
+    from flash_attn import flash_attn_func, flash_attn_varlen_func
+    from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
 
 
 class DTrOCRModel(nn.Module):
@@ -72,12 +77,15 @@ class DTrOCRModel(nn.Module):
                     attention_mask
                 ], dim=-1
             )
-            attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
-                attention_mask=attention_mask,
-                input_shape=(input_shape[0], input_shape[-2]),
-                inputs_embeds=patch_and_token_embeddings,
-                past_key_values_length=0,
-            )
+            if self._attn_implementation == "flash_attention_2":
+                attention_mask = attention_mask if 0 in attention_mask else None
+            else:
+                attention_mask = _prepare_4d_causal_attention_mask_for_sdpa(
+                    attention_mask=attention_mask,
+                    input_shape=(input_shape[0], input_shape[-2]),
+                    inputs_embeds=patch_and_token_embeddings,
+                    past_key_values_length=0,
+                )
 
         for hidden_layer in self.hidden_layers:
             outputs = hidden_layer(hidden_states, attention_mask=attention_mask)
