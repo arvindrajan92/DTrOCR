@@ -20,11 +20,6 @@ from transformers.generation.stopping_criteria import (
     StoppingCriteriaList,
     StopStringCriteria,
 )
-from transformers.utils import is_flash_attn_2_available
-
-if is_flash_attn_2_available():
-    from flash_attn import flash_attn_func, flash_attn_varlen_func
-    from flash_attn.bert_padding import index_first_axis, pad_input, unpad_input
 
 
 class DTrOCRModel(nn.Module):
