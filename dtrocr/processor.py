@@ -33,7 +33,7 @@ class DTrOCRProcessor:
 
     def __call__(
         self,
-        images: Union[Image, List[Image]] = None,
+        images: Union[Image.Image, List[Image.Image]] = None,
         texts: Union[str, List[str]] = None,
         return_labels: bool = False,
         *args,
