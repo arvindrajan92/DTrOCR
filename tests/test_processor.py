@@ -61,6 +61,9 @@ def test_image_processor():
 
     config = DTrOCRConfig()
     processor = DTrOCRProcessor(config=config)
-    tokeniser_output = processor(images=[Image.new("RGB", config.image_size[::-1]) for _ in range(batch_size)])
+    tokeniser_output = processor(
+        images=[Image.new("RGB", config.image_size[::-1]) for _ in range(batch_size)],
+        return_tensors="pt"
+    )
 
     assert tokeniser_output.pixel_values.shape == (batch_size, 3) + tuple(config.image_size)
