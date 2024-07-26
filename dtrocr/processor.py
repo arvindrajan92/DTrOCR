@@ -19,7 +19,9 @@ class DTrOCRProcessor:
         self.tokeniser = GPT2Tokenizer.from_pretrained(
             config.gpt2_hf_model,
             add_bos_token=add_bos_token,
-            model_max_length=config.max_position_embeddings - int(((config.image_size[0] / config.patch_size[0]) * (config.image_size[1] / config.patch_size[1])))
+            model_max_length=config.max_position_embeddings - int(
+                (config.image_size[0] / config.patch_size[0]) * (config.image_size[1] / config.patch_size[1])
+            )
         )
         self.tokeniser.pad_token = self.tokeniser.bos_token
         self.tokeniser.add_eos_token = add_eos_token

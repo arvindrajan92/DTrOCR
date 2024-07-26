@@ -138,7 +138,9 @@ class DTrOCRLMHeadModel(nn.Module):
             loss_fct = nn.CrossEntropyLoss(reduction="none")
             loss = loss_fct(shift_logits.view(-1, shift_logits.size(-1)), shift_labels.view(-1))
 
-            label_matches = shift_labels.view(-1) == torch.argmax(torch.nn.functional.softmax(shift_logits.view(-1, shift_logits.size(-1)), dim=-1), dim=-1)
+            label_matches = shift_labels.view(-1) == torch.argmax(
+                torch.nn.functional.softmax(shift_logits.view(-1, shift_logits.size(-1)), dim=-1), dim=-1
+            )
 
             # reduce loss
             if attention_mask is not None:
