@@ -10,7 +10,7 @@ A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Charact
 ## Installation
 
 ```shell
-git clone git@github.com:arvindrajan92/DTrOCR.git
+git clone https://github.com/arvindrajan92/DTrOCR
 cd DTrOCR
 pip install -r requirements.txt
 ```
