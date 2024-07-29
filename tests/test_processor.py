@@ -57,7 +57,7 @@ def test_tokeniser_with_eos_and_bos_tokens():
 
 
 def test_image_processor():
-    batch_size = random.choice(range(10))
+    batch_size = random.choice(range(1, 10))
 
     config = DTrOCRConfig()
     processor = DTrOCRProcessor(config=config)

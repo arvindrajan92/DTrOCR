@@ -8,7 +8,7 @@ from dataclasses import asdict
 
 
 def test_model():
-    batch_size = random.choice(range(10))
+    batch_size = random.choice(range(1, 10))
 
     config = DTrOCRConfig()
     model = DTrOCRLMHeadModel(config)
