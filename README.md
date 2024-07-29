@@ -5,7 +5,15 @@ A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Charact
 >
 > The author of this repository is not in any way affiliated to the author of the [DTrOCR paper](https://doi.org/10.48550/arXiv.2308.15996). This implementation is purely based on the published details of DTrOCR model architecture and its training.
 > 
-> Pre-trained weight for the model is currently not available as this is a personal project with limited resources.
+> Pre-trained weight for the model is not available at this time as this is a personal project with limited resources.
+
+Below are the key differences between the original implementation (from the paper) and this implementation.
+
+|                                                              | Original implementation      | This implementation   |
+| ------------------------------------------------------------ | ---------------------------- | --------------------- |
+| Maximum token length<br />(including 128 image patch tokens) | 512                          | 256                   |
+| Language                                                     | English & Chinese            | English               |
+| Pre-training corpus (planned)                                | Scene, printed & handwritten | Printed & handwritten |
 
 ## Installation
 
