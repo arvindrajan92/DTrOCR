@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite using metadata below."
+authors:
+- family-names: "Rajan"
+  given-names: "Arvind"
+  orcid: "https://orcid.org/0000-0003-4829-5007"
+title: "A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Character Recognition"
+repository-code: 'https://github.com/arvindrajan92/DTrOCR'
+date-released: 2024-07-13
+license: MIT
