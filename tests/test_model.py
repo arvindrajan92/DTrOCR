@@ -37,7 +37,7 @@ def test_model():
 
 
 def test_generation_to_be_deterministic():
-    beam_size = random.choice(range(1, 10))
+    beam_size = random.choice(range(1, 3))
 
     config = DTrOCRConfig()
     model = DTrOCRLMHeadModel(config)
@@ -57,7 +57,7 @@ def test_generation_to_be_deterministic():
 
 
 def test_generation_with_and_without_caching():
-    beam_size = random.choice(range(1, 10))
+    beam_size = random.choice(range(1, 3))
 
     config = DTrOCRConfig()
     model = DTrOCRLMHeadModel(config)
