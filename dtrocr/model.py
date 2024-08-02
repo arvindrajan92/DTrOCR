@@ -57,15 +57,20 @@ class DTrOCRModel(nn.Module):
         else:
             past_length = past_key_values[0][0].size(-2)
 
-        patch_embeddings = self.patch_embeddings(pixel_values)
+        patch_embeddings = self.patch_embeddings(pixel_values) if past_length == 0 else None
         token_embeddings = self.token_embedding(input_ids)
 
-        patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
+        if patch_embeddings is not None:
+            patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
+        else:
+            patch_and_token_embeddings = token_embeddings
         input_shape = patch_and_token_embeddings.shape
 
-        if position_ids is None:
+        if position_ids is None or past_length == 0:
             position_ids = torch.arange(past_length, input_shape[1] + past_length, dtype=torch.long, device=device)
             position_ids = position_ids.unsqueeze(0)
+        else:
+            position_ids = torch.ones_like(position_ids, device=position_ids.device) * past_length
         position_embeddings = self.positional_embedding(position_ids)
 
         hidden_states = patch_and_token_embeddings + position_embeddings
@@ -77,7 +82,7 @@ class DTrOCRModel(nn.Module):
                 [
                     torch.ones(
                         attention_mask.shape[0],
-                        patch_embeddings.shape[-2],
+                        patch_embeddings.shape[-2] if patch_embeddings is not None else past_length,
                         dtype=attention_mask.dtype,
                         device=attention_mask.device
                     ),
@@ -190,14 +195,15 @@ class DTrOCRLMHeadModel(nn.Module):
             self,
             inputs: DTrOCRProcessorOutput,
             processor: DTrOCRProcessor,
-            num_beams: int = 1
+            num_beams: int = 1,
+            use_cache: bool = True
     ):
         # params and configs
         batch_size = inputs.input_ids.shape[0]
         model_kwargs = {
             'pixel_values': inputs.pixel_values,
             'attention_mask': inputs.attention_mask,
-            'use_cache': True
+            'use_cache': use_cache
         }
         generation_config = GenerationConfig(
             max_new_tokens=1,
@@ -258,12 +264,12 @@ class DTrOCRLMHeadModel(nn.Module):
 
     def _sample(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: torch.Tensor,
         logits_processor: LogitsProcessorList,
         stopping_criteria: StoppingCriteriaList,
         generation_config: GenerationConfig,
         **model_kwargs,
-    ) -> torch.LongTensor:
+    ) -> torch.Tensor:
         # init values
         pad_token_id = generation_config.pad_token_id
         has_eos_stopping_criteria = any(hasattr(criteria, "eos_token_id") for criteria in stopping_criteria)
@@ -296,7 +302,7 @@ class DTrOCRLMHeadModel(nn.Module):
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
 
             # update generated ids, model inputs, and length for next step
-            model_kwargs = self._update_model_kwargs_for_generation(model_kwargs)
+            model_kwargs = self._update_model_kwargs_for_generation(outputs, model_kwargs)
 
             unfinished_sequences = unfinished_sequences & ~stopping_criteria(input_ids, None)
             this_peer_finished = unfinished_sequences.max() == 0
@@ -309,7 +315,7 @@ class DTrOCRLMHeadModel(nn.Module):
 
     def _beam_search(
         self,
-        input_ids: torch.LongTensor,
+        input_ids: torch.Tensor,
         beam_scorer: BeamScorer,
         logits_processor: LogitsProcessorList,
         stopping_criteria: StoppingCriteriaList,
@@ -386,7 +392,7 @@ class DTrOCRLMHeadModel(nn.Module):
 
             input_ids = torch.cat([input_ids[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
 
-            model_kwargs = self._update_model_kwargs_for_generation(model_kwargs)
+            model_kwargs = self._update_model_kwargs_for_generation(outputs, model_kwargs)
 
             # This is needed to properly delete outputs.logits which may be very large for first iteration
             # Otherwise a reference to outputs is kept which keeps the logits alive in the next iteration
@@ -462,9 +468,14 @@ class DTrOCRLMHeadModel(nn.Module):
 
     @staticmethod
     def _update_model_kwargs_for_generation(
+        outputs: DTrOCRLMHeadModelOutput,
         model_kwargs: Dict[str, Any],
         num_new_tokens: int = 1,
     ) -> Dict[str, Any]:
+
+        # update cache
+        model_kwargs['past_key_values'] = outputs.past_key_values
+
         # update attention mask
         if "attention_mask" in model_kwargs:
             attention_mask = model_kwargs["attention_mask"]
