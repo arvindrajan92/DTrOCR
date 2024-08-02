@@ -1,12 +1,11 @@
 import torch
-from torch import nn
+from torch import nn, Tensor
 from typing import Optional, Tuple, Dict, Any
 
 from config import DTrOCRConfig
 from processor import DTrOCRProcessor
 from data import DTrOCRLMHeadModelOutput, DTrOCRModelOutput, DTrOCRProcessorOutput
 
-from transformers.cache_utils import Cache
 from transformers.models.vit.modeling_vit import ViTPatchEmbeddings
 from transformers.generation.logits_process import LogitsProcessorList
 from transformers.models.gpt2.modeling_gpt2 import GPT2Block, GPT2Model
@@ -43,17 +42,35 @@ class DTrOCRModel(nn.Module):
         self,
         pixel_values: torch.Tensor,
         input_ids: torch.LongTensor,
-        attention_mask: Optional[torch.Tensor] = None
+        position_ids: Optional[torch.LongTensor] = None,
+        past_key_values: Optional[Tuple[Tuple[torch.Tensor]]] = None,
+        attention_mask: Optional[torch.Tensor] = None,
+        use_cache: Optional[bool] = False,
     ) -> DTrOCRModelOutput:
         device = input_ids.device if input_ids is not None else input_ids.device
         input_ids = input_ids.view(-1, input_ids.shape[-1])
 
-        patch_embeddings = self.patch_embeddings(pixel_values)
-        token_embeddings = self.token_embedding(input_ids)
-        patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
+        # past key values
+        if past_key_values is None:
+            past_length = 0
+            past_key_values = tuple([None] * len(self.hidden_layers))
+        else:
+            past_length = past_key_values[0][0].size(-2)
 
+        patch_embeddings = self.patch_embeddings(pixel_values) if past_length == 0 else None
+        token_embeddings = self.token_embedding(input_ids)
+
+        if patch_embeddings is not None:
+            patch_and_token_embeddings = torch.concat([patch_embeddings, token_embeddings], dim=-2)
+        else:
+            patch_and_token_embeddings = token_embeddings
         input_shape = patch_and_token_embeddings.shape
-        position_ids = torch.arange(input_shape[1], dtype=torch.long, device=device).unsqueeze(0)
+
+        if position_ids is None or past_length == 0:
+            position_ids = torch.arange(past_length, input_shape[1] + past_length, dtype=torch.long, device=device)
+            position_ids = position_ids.unsqueeze(0)
+        else:
+            position_ids = torch.ones_like(position_ids, device=position_ids.device) * past_length
         position_embeddings = self.positional_embedding(position_ids)
 
         hidden_states = patch_and_token_embeddings + position_embeddings
@@ -65,7 +82,7 @@ class DTrOCRModel(nn.Module):
                 [
                     torch.ones(
                         attention_mask.shape[0],
-                        patch_embeddings.shape[-2],
+                        patch_embeddings.shape[-2] if patch_embeddings is not None else past_length,
                         dtype=attention_mask.dtype,
                         device=attention_mask.device
                     ),
@@ -79,16 +96,24 @@ class DTrOCRModel(nn.Module):
                     attention_mask=attention_mask,
                     input_shape=(input_shape[0], input_shape[-2]),
                     inputs_embeds=patch_and_token_embeddings,
-                    past_key_values_length=0,
+                    past_key_values_length=past_length,
                 )
 
-        for hidden_layer in self.hidden_layers:
-            outputs = hidden_layer(hidden_states, attention_mask=attention_mask)
+        presents = () if use_cache else None
+        for hidden_layer, layer_past in zip(self.hidden_layers, past_key_values):
+            outputs = hidden_layer(
+                hidden_states,
+                layer_past=layer_past,
+                attention_mask=attention_mask,
+                use_cache=use_cache
+            )
             hidden_states = outputs[0]
+            if use_cache is True:
+                presents = presents + (outputs[1],)
 
         hidden_states = self.layer_norm(hidden_states)
 
-        return DTrOCRModelOutput(hidden_states=hidden_states)
+        return DTrOCRModelOutput(hidden_states=hidden_states, past_key_values=presents)
 
     def initialise_weights(self, config: DTrOCRConfig) -> None:
         # load pre-trained GPT-2
@@ -117,13 +142,19 @@ class DTrOCRLMHeadModel(nn.Module):
         self,
         pixel_values: torch.Tensor,
         input_ids: torch.LongTensor,
+        past_key_values: Optional[Tuple[Tuple[torch.Tensor]]] = None,
+        position_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
+        use_cache: Optional[bool] = False,
         labels: Optional[torch.LongTensor] = None,
     ) -> DTrOCRLMHeadModelOutput:
         transformer_output = self.transformer(
             pixel_values=pixel_values,
             input_ids=input_ids,
-            attention_mask=attention_mask
+            past_key_values=past_key_values,
+            position_ids=position_ids,
+            attention_mask=attention_mask,
+            use_cache=use_cache
         )
         logits = self.language_model_head(transformer_output.hidden_states)
 
@@ -152,21 +183,27 @@ class DTrOCRLMHeadModel(nn.Module):
                 loss = loss.mean()
                 accuracy = torch.sum(label_matches) / label_matches.shape[0]
 
-        return DTrOCRLMHeadModelOutput(loss=loss, accuracy=accuracy, logits=logits)
+        return DTrOCRLMHeadModelOutput(
+            loss=loss,
+            logits=logits,
+            accuracy=accuracy,
+            past_key_values=transformer_output.past_key_values
+        )
 
     @torch.no_grad()
     def generate(
             self,
             inputs: DTrOCRProcessorOutput,
             processor: DTrOCRProcessor,
-            num_beams: int = 1
+            num_beams: int = 1,
+            use_cache: bool = True
     ):
         # params and configs
         batch_size = inputs.input_ids.shape[0]
         model_kwargs = {
             'pixel_values': inputs.pixel_values,
             'attention_mask': inputs.attention_mask,
-            'use_cache': False
+            'use_cache': use_cache
         }
         generation_config = GenerationConfig(
             max_new_tokens=1,
@@ -232,22 +269,17 @@ class DTrOCRLMHeadModel(nn.Module):
         stopping_criteria: StoppingCriteriaList,
         generation_config: GenerationConfig,
         **model_kwargs,
-    ) -> torch.LongTensor:
+    ) -> torch.Tensor:
         # init values
         pad_token_id = generation_config.pad_token_id
-        output_scores = generation_config.output_scores
-        return_dict_in_generate = generation_config.return_dict_in_generate
         has_eos_stopping_criteria = any(hasattr(criteria, "eos_token_id") for criteria in stopping_criteria)
-
-        # init attention / hidden states / scores tuples
-        scores = () if (return_dict_in_generate and output_scores) else None
 
         # keep track of which sequences are already finished
         batch_size = input_ids.shape[0]
-        this_peer_finished = False
         unfinished_sequences = torch.ones(batch_size, dtype=torch.long, device=input_ids.device)
         model_kwargs = self._get_initial_cache_position(input_ids, model_kwargs)
 
+        this_peer_finished = False
         while not this_peer_finished:
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
             outputs = self(**model_inputs)
@@ -269,7 +301,10 @@ class DTrOCRLMHeadModel(nn.Module):
             # update generated ids, model inputs, and length for next step
             input_ids = torch.cat([input_ids, next_tokens[:, None]], dim=-1)
 
-            unfinished_sequences = unfinished_sequences & ~stopping_criteria(input_ids, scores)
+            # update generated ids, model inputs, and length for next step
+            model_kwargs = self._update_model_kwargs_for_generation(outputs, model_kwargs)
+
+            unfinished_sequences = unfinished_sequences & ~stopping_criteria(input_ids, None)
             this_peer_finished = unfinished_sequences.max() == 0
 
             # This is needed to properly delete outputs.logits which may be very large for first iteration
@@ -278,50 +313,18 @@ class DTrOCRLMHeadModel(nn.Module):
 
         return input_ids
 
-    def _get_stopping_criteria(
-        self,
-        generation_config: GenerationConfig,
-        processor: Optional[DTrOCRProcessor] = None,
-    ) -> StoppingCriteriaList:
-        criteria = StoppingCriteriaList()
-        if generation_config.max_length is not None:
-            max_position_embeddings = getattr(self.config, "max_position_embeddings", None)
-            criteria.append(
-                MaxLengthCriteria(
-                    max_length=generation_config.max_length,
-                    max_position_embeddings=max_position_embeddings,
-                )
-            )
-        if generation_config.max_time is not None:
-            criteria.append(MaxTimeCriteria(max_time=generation_config.max_time))
-        if generation_config.stop_strings is not None:
-            if processor is None:
-                raise ValueError(
-                    "There are one or more stop strings, either in the arguments to `generate` or in the "
-                    "model's generation config, but we could not locate a tokenizer. When generating with "
-                    "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
-                )
-            criteria.append(StopStringCriteria(
-                stop_strings=generation_config.stop_strings, tokenizer=processor.tokeniser)
-            )
-        if generation_config.eos_token_id is not None:
-            criteria.append(EosTokenCriteria(eos_token_id=generation_config.eos_token_id))
-        return criteria
-
     def _beam_search(
         self,
         input_ids: torch.Tensor,
         beam_scorer: BeamScorer,
-        logits_processor: list,
+        logits_processor: LogitsProcessorList,
         stopping_criteria: StoppingCriteriaList,
         generation_config: GenerationConfig,
         **model_kwargs,
-    ) -> torch.LongTensor:
+    ) -> torch.Tensor:
         # init values
         pad_token_id = generation_config.pad_token_id
         eos_token_id = generation_config.eos_token_id
-        output_scores = generation_config.output_scores
-        return_dict_in_generate = generation_config.return_dict_in_generate
 
         batch_size = len(beam_scorer._beam_hyps)
         num_beams = beam_scorer.num_beams
@@ -334,27 +337,20 @@ class DTrOCRLMHeadModel(nn.Module):
                 f"Batch dimension of `input_ids` should be {num_beams * batch_size}, but is {batch_beam_size}."
             )
 
-        # init attention / hidden states / scores tuples
-        scores = () if (return_dict_in_generate and output_scores) else None
-        beam_indices = (
-            tuple(() for _ in range(batch_beam_size)) if (return_dict_in_generate and output_scores) else None
-        )
-
         # initialise score of first beam with 0 and the rest with -1e9. This makes sure that only tokens
         # of the first beam are considered to avoid sampling the exact same tokens across all beams.
         beam_scores = torch.zeros((batch_size, num_beams), dtype=torch.float, device=input_ids.device)
         beam_scores[:, 1:] = -1e9
         beam_scores = beam_scores.view((batch_size * num_beams,))
 
-        decoder_prompt_len = input_ids.shape[-1]  # record the prompt length of decoder
-
         this_peer_finished = False
+        decoder_prompt_len = input_ids.shape[-1]
         while not this_peer_finished:
             model_inputs = self.prepare_inputs_for_generation(input_ids, **model_kwargs)
             outputs = self(**model_inputs)
 
-            # Clone is needed to avoid keeping a hanging ref to outputs.logits which may be very large for first iteration
-            # (the clone itself is always small)
+            # Clone is needed to avoid keeping a hanging ref to outputs.logits which may be very large for first
+            # iteration (the clone itself is always small)
             next_token_logits = outputs.logits[:, -1, :].clone()
             next_token_scores = nn.functional.log_softmax(
                 next_token_logits, dim=-1
@@ -387,7 +383,6 @@ class DTrOCRLMHeadModel(nn.Module):
                 next_indices,
                 pad_token_id=pad_token_id,
                 eos_token_id=eos_token_id,
-                beam_indices=beam_indices,
                 decoder_prompt_len=decoder_prompt_len,
             )
 
@@ -397,16 +392,21 @@ class DTrOCRLMHeadModel(nn.Module):
 
             input_ids = torch.cat([input_ids[beam_idx, :], beam_next_tokens.unsqueeze(-1)], dim=-1)
 
+            model_kwargs = self._update_model_kwargs_for_generation(outputs, model_kwargs)
+
             # This is needed to properly delete outputs.logits which may be very large for first iteration
             # Otherwise a reference to outputs is kept which keeps the logits alive in the next iteration
             # IMPORTANT: Note that this should appear BEFORE the call to _reorder_cache() to save the maximum memory
             # (that way the memory peak does not include outputs.logits)
             del outputs
 
+            if model_kwargs.get("past_key_values", None) is not None:
+                model_kwargs["past_key_values"] = self._reorder_cache(model_kwargs["past_key_values"], beam_idx)
+
             # increase cur_len
             cur_len = cur_len + 1
 
-            if beam_scorer.is_done or all(stopping_criteria(input_ids, scores)):
+            if beam_scorer.is_done or all(stopping_criteria(input_ids, None)):
                 this_peer_finished = True
 
         sequence_outputs = beam_scorer.finalize(
@@ -417,20 +417,120 @@ class DTrOCRLMHeadModel(nn.Module):
             pad_token_id=pad_token_id,
             eos_token_id=eos_token_id,
             max_length=stopping_criteria.max_length,
-            beam_indices=beam_indices,
             decoder_prompt_len=decoder_prompt_len,
         )
 
         return sequence_outputs["sequences"]
 
+    def _get_stopping_criteria(
+        self,
+        generation_config: GenerationConfig,
+        processor: Optional[DTrOCRProcessor] = None,
+    ) -> StoppingCriteriaList:
+        criteria = StoppingCriteriaList()
+        if generation_config.max_length is not None:
+            max_position_embeddings = getattr(self.config, "max_position_embeddings", None)
+            criteria.append(
+                MaxLengthCriteria(
+                    max_length=generation_config.max_length,
+                    max_position_embeddings=max_position_embeddings,
+                )
+            )
+        if generation_config.max_time is not None:
+            criteria.append(MaxTimeCriteria(max_time=generation_config.max_time))
+        if generation_config.stop_strings is not None:
+            if processor is None:
+                raise ValueError(
+                    "There are one or more stop strings, either in the arguments to `generate` or in the "
+                    "model's generation config, but we could not locate a tokenizer. When generating with "
+                    "stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`."
+                )
+            criteria.append(StopStringCriteria(
+                stop_strings=generation_config.stop_strings, tokenizer=processor.tokeniser)
+            )
+        if generation_config.eos_token_id is not None:
+            criteria.append(EosTokenCriteria(eos_token_id=generation_config.eos_token_id))
+        return criteria
+
+    @staticmethod
+    def _reorder_cache(
+            past_key_values: Tuple[Tuple[torch.Tensor]], beam_idx: torch.Tensor
+    ) -> tuple[tuple[Tensor, ...], ...]:
+        """
+        This function is used to re-order the `past_key_values` cache if [`~PreTrainedModel.beam_search`] or
+        [`~PreTrainedModel.beam_sample`] is called. This is required to match `past_key_values` with the correct
+        beam_idx at every generation step.
+        """
+        return tuple(
+            tuple(past_state.index_select(0, beam_idx.to(past_state.device)) for past_state in layer_past)
+            for layer_past in past_key_values
+        )
+
+    @staticmethod
+    def _update_model_kwargs_for_generation(
+        outputs: DTrOCRLMHeadModelOutput,
+        model_kwargs: Dict[str, Any],
+        num_new_tokens: int = 1,
+    ) -> Dict[str, Any]:
+
+        # update cache
+        model_kwargs['past_key_values'] = outputs.past_key_values
+
+        # update attention mask
+        if "attention_mask" in model_kwargs:
+            attention_mask = model_kwargs["attention_mask"]
+            model_kwargs["attention_mask"] = torch.cat(
+                [attention_mask, attention_mask.new_ones((attention_mask.shape[0], 1))], dim=-1
+            )
+
+        if (
+            model_kwargs.get("use_cache", True)
+            and "cache_position" in model_kwargs
+            and model_kwargs["cache_position"] is not None
+        ):
+            model_kwargs["cache_position"] = model_kwargs["cache_position"][-1:] + num_new_tokens
+
+        return model_kwargs
+
     @staticmethod
     def prepare_inputs_for_generation(
-        input_ids: torch.Tensor, **model_kwargs
+        input_ids: torch.Tensor, past_key_values=None, **kwargs
     ) -> Dict[str, Any]:
-        model_inputs = {'input_ids': input_ids}
-        for key in ['pixel_values', 'attention_mask', 'labels']:
-            if key in model_kwargs:
-                model_inputs[key] = model_kwargs[key]
+        # Omit tokens covered by past_key_values
+        if past_key_values:
+            past_length = past_key_values[0][0].shape[2]
+
+            # Some generation methods already pass only the last input ID
+            if input_ids.shape[1] > past_length:
+                remove_prefix_length = past_length
+            else:
+                # Default to old behavior: keep only final ID
+                remove_prefix_length = input_ids.shape[1] - 1
+
+            input_ids = input_ids[:, remove_prefix_length:]
+
+        attention_mask = kwargs.get("attention_mask", None)
+        position_ids = kwargs.get("position_ids", None)
+
+        if attention_mask is not None and position_ids is None:
+            # create position_ids on the fly for batch generation
+            position_ids = attention_mask.long().cumsum(-1) - 1
+            position_ids.masked_fill_(attention_mask == 0, 1)
+            if past_key_values:
+                position_ids = position_ids[:, -input_ids.shape[1]:]
+        else:
+            position_ids = None
+
+        model_inputs = {
+            'input_ids': input_ids,
+            "past_key_values": past_key_values,
+            'pixel_values': kwargs['pixel_values'],
+            'use_cache': kwargs.get("use_cache"),
+            'labels': kwargs.get("labels"),
+            'attention_mask': attention_mask,
+            'position_ids': position_ids
+        }
+
         return model_inputs
 
     @staticmethod
@@ -439,19 +539,7 @@ class DTrOCRLMHeadModel(nn.Module):
             model_kwargs["cache_position"] = None
             return model_kwargs
 
-        past_length = 0
-        if model_kwargs.get("past_key_values") is not None:
-            cache = model_kwargs["past_key_values"]
-            if not isinstance(cache, Cache):
-                past_length = cache[0][0].shape[2]
-            elif hasattr(cache, "get_seq_length") and cache.get_seq_length() is not None:
-                past_length = cache.get_seq_length()
-
-        if "inputs_embeds" in model_kwargs:
-            cur_len = model_kwargs["inputs_embeds"].shape[1]
-        else:
-            cur_len = input_ids.shape[-1]
-        model_kwargs["cache_position"] = torch.arange(past_length, cur_len, device=input_ids.device)
+        model_kwargs["cache_position"] = torch.arange(0, input_ids.shape[-1], device=input_ids.device)
         return model_kwargs
 
     @staticmethod
