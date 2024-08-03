@@ -10,17 +10,17 @@ A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Charact
 
 > [!NOTE]
 >
-> The author of this repository is not in any way affiliated to the author of the [DTrOCR paper](https://doi.org/10.48550/arXiv.2308.15996). This implementation is purely based on the published details of DTrOCR model architecture and its training.
+> The authors of this repository are not affiliated with the author of the [DTrOCR paper](https://doi.org/10.48550/arXiv.2308.15996). This implementation is independently developed, relying solely on the publicly available descriptions of the DTrOCR model architecture and its training methodologies, with a specific focus on printed and handwritten words.
 > 
-> Pre-trained weight for the model is not available at this time as this is a personal project with limited resources.
+> Due to the project's inception as a personal endeavor with limited resources, the pre-trained weights for the model are not presently accessible. However, there is an ongoing commitment to pre-train the model and subsequently release the weights to the public. For detailed insights into the project's development and future milestones, please refer to the [project roadmap](https://github.com/users/arvindrajan92/projects/1).
 
-Below are the key differences between the original implementation (from the paper) and this implementation.
+The table below outlines the principal distinctions between the implementation described in the original paper and the current implementation.
 
-|                                                              | Original implementation      | This implementation   |
-| ------------------------------------------------------------ | ---------------------------- | --------------------- |
-| Maximum token length<br />(including 128 image patch tokens) | 512                          | 256                   |
-| Language                                                     | English & Chinese            | English               |
-| Pre-training corpus (planned)                                | Scene, printed & handwritten | Printed & handwritten |
+|                                                             | Original implementation      | Current implementation |
+|-------------------------------------------------------------| ---------------------------- |------------------------|
+| Maximum token length<br />(including 128 image patch tokens)| 512                          | 256                    |
+| Supported language(s)                                       | English & Chinese            | English                |
+| Pre-training corpus (planned)                               | Scene, printed & handwritten | Printed & handwritten  |
 
 ## Installation
 
@@ -61,4 +61,7 @@ model_output = model.generate(
 
 predicted_text = processor.tokeniser.decode(model_output[0], skip_special_tokens=True)
 ```
+## Acknowledgments
+This project builds upon the original work presented in [DTrOCR: Decoder-only Transformer for Optical Character Recognition](https://doi.org/10.48550/arXiv.2308.15996), authored by Masato Fujitake. We extend our gratitude for their significant contributions to the field.
 
+Additionally, we leverage the GPT-2 and Vision Transformer (ViT) models developed by Hugging Face, which have been instrumental in advancing our project's capabilities. Our sincere thanks go to the Hugging Face team for making such powerful tools accessible to the broader research community.
