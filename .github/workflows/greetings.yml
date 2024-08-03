@@ -1,0 +1,22 @@
+name: Greetings
+
+on: [pull_request_target, issues]
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+    steps:
+    - uses: actions/first-interaction@v1
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        issue-message: |
+          Hi @{{ sender.login }}! 👋
+
+          Welcome to DTrOCR project! Thank you for your first issue. We're excited to have you here and will respond at the soonest. Happy coding! 🎉
+        pr-message: |
+          Hi @{{ sender.login }}! 👋
+
+          Welcome to DTrOCR project! Thank you for your first pull request. We're excited to have you here and will respond at the soonest. Happy coding! 🎉
