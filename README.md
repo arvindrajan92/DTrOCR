@@ -61,6 +61,9 @@ model_output = model.generate(
 
 predicted_text = processor.tokeniser.decode(model_output[0], skip_special_tokens=True)
 ```
+## Dataset
+Notes on generating dataset for pre-training the model can be found [here](tools/PRETRAINING_DATASET.md).
+
 ## Acknowledgments
 This project builds upon the original work presented in [DTrOCR: Decoder-only Transformer for Optical Character Recognition](https://doi.org/10.48550/arXiv.2308.15996), authored by Masato Fujitake. We extend our gratitude for their significant contributions to the field.
 
