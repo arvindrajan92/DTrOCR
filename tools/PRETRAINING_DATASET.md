@@ -4,11 +4,18 @@ Although it is feasible to prepare DTrOCR's pre-training dataset through the exe
 
 ## Download font files
 
-Download fonts from [Google Fonts](https://github.com/google/fonts).
+Download fonts from [Google Fonts](https://github.com/google/fonts). A ZIP file (over 1GB) can be downloaded from [here](https://github.com/google/fonts?tab=readme-ov-file#download-all-google-fonts).
 
 ## Download text data
 
 Download [The Pile](https://huggingface.co/datasets/EleutherAI/the_pile_deduplicated) dataset from Hugging Face to a local folder. Note that the dataset encompasses 451 GB of data; thus, it is imperative to verify the availability of sufficient storage capacity on your drive prior to download.
+
+Use the following command line interface (CLI) instruction to initiate the download via terminal:
+
+```shell
+sudo huggingface-cli download EleutherAI/the_pile_deduplicated --repo-type dataset --local-dir <insert download path here>
+```
+
 
 ## Generate printed texts
 

@@ -16,11 +16,12 @@ A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Charact
 
 The table below outlines the principal distinctions between the implementation described in the original paper and the current implementation.
 
-|                                                             | Original implementation      | Current implementation |
-|-------------------------------------------------------------| ---------------------------- |------------------------|
-| Maximum token length<br />(including 128 image patch tokens)| 512                          | 256                    |
-| Supported language(s)                                       | English & Chinese            | English                |
-| Pre-training corpus (planned)                               | Scene, printed & handwritten | Printed & handwritten  |
+|                                                                  | Original implementation      | Current implementation |
+|------------------------------------------------------------------|------------------------------|------------------------|
+| Maximum token length<br />*including 128 image patch tokens*     | 512                          | 256                    |
+| Supported language(s)                                            | English & Chinese            | English                |
+| Pre-training corpus (planned)                                    | Scene, printed & handwritten | Printed & handwritten  |
+| Pre-training dataset size (M)<br />*for printed and handwritten* | 4,000,000                    | 500,000                |
 
 ## Installation
 
@@ -62,7 +63,7 @@ model_output = model.generate(
 predicted_text = processor.tokeniser.decode(model_output[0], skip_special_tokens=True)
 ```
 ## Dataset
-Notes on generating dataset for pre-training the model can be found [here](tools/PRETRAINING_DATASET.md).
+Notes on generating dataset for pre-training DTrOCR model can be found [here](tools/PRETRAINING_DATASET.md).
 
 ## Acknowledgments
 This project builds upon the original work presented in [DTrOCR: Decoder-only Transformer for Optical Character Recognition](https://doi.org/10.48550/arXiv.2308.15996), authored by Masato Fujitake. We extend our gratitude for their significant contributions to the field.
