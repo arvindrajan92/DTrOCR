@@ -1,10 +1,10 @@
-# DTrOCR
+# DTrOCR: Decoder-only Transformer for Optical Character Recognition
 ![logo](logo.png)
 [![Python application](https://github.com/arvindrajan92/DTrOCR/actions/workflows/python-app.yml/badge.svg)](https://github.com/arvindrajan92/DTrOCR/actions/workflows/python-app.yml)
 [![CodeQL](https://github.com/arvindrajan92/DTrOCR/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/arvindrajan92/DTrOCR/actions/workflows/github-code-scanning/codeql)
 [![Python Versions](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/github/license/arvindrajan92/DTrOCR.svg)](https://github.com/arvindrajan92/DTrOCR/LICENSE)
-[![GitHub stars](https://img.shields.io/github/stars/arvindrajan92/DTrOCR?style=social)](https://github.com/arvindrajan92/DTrOCR)
+[![GitHub stars](https://img.shields.io/github/stars/arvindrajan92/DTrOCR?style=social)](https://github.com/arvindrajan92/DTrOCR/stargazers)
 
 A PyTorch implementation of DTrOCR: Decoder-only Transformer for Optical Character Recognition.
 
