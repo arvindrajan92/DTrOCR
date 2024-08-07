@@ -1,0 +1,22 @@
+name: Auto assign issues to repository owner
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  assign:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Assign issue to repository owner
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const owner = context.repo.owner;
+          github.issues.addAssignees({
+            owner: owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            assignees: [owner]
+          })
