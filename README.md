@@ -21,7 +21,7 @@ The table below outlines the principal distinctions between the implementation d
 | Maximum token length<br />*including 128 image patch tokens*     | 512                          | 256                    |
 | Supported language(s)                                            | English & Chinese            | English                |
 | Pre-training corpus (planned)                                    | Scene, printed & handwritten | Printed & handwritten  |
-| Pre-training dataset size (M)<br />*for printed and handwritten* | 4,000,000                    | 500,000                |
+| Pre-training dataset size (M)<br />*for printed and handwritten* | 4,000                        | 500                    |
 
 ## Installation
 
